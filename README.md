@@ -1,5 +1,5 @@
 # DeepCoro
-This repository contains the material necessary to run inference on a DICOM coronary angioography video. 
+This repository contains the material necessary to run inference on a DICOM coronary angiography video. 
 
 ### Outputs
 The outputs generated from inference are:
