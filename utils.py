@@ -188,8 +188,8 @@ retinanet_artery_labels = { # https://syntaxscore.org/index.php/tutorial/definit
     26: 'other' # stenosis
 }
 
-which_artery = {9: [1,2,3,4,20,21,22,23],
-                5: [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,24,25]}
+which_artery = {"RCA": [1,2,3,4,20,21,22,23],
+                "LCA": [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,24,25]}
 
 def get_segment_region(region, object_value):
     unique, counts = np.unique(region, return_counts=True)
@@ -305,5 +305,4 @@ def get_age(dicom_info):
     age = relativedelta(d2, d1).years
     
     return age
-
 
