@@ -12,11 +12,22 @@ from tqdm import tqdm
 import imageio
 import scipy.ndimage
 import time
+from collections import Counter
 
-def deepcoro(dicom_path, save_dir, models_dir, device):
+def deepcoro(dicom_path, artery_view, save_dir, models_dir, device):
     dicom_info = pydicom.dcmread(dicom_path)
     dicom = dicom_info.pixel_array
     since = time.time()
+    
+    try:
+        primary_angle = float(dicom_info['PositionerPrimaryAngle'].value)
+    except:
+        assert(1 == 0), "Positioner Primary Angle information missing."
+        
+    try:
+        secondary_angle = float(dicom_info['PositionerSecondaryAngle'].value)
+    except:
+        assert(1 == 0), "Positioner Secondary Angle information missing."
 
     try:
         imager_spacing = float(dicom_info['ImagerPixelSpacing'][0])
@@ -45,6 +56,7 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
     except:
         assert(1 == 0), "Patient age information missing."
         
+        
     if len(models_dir) > 0:
         if models_dir[-1] != "/":
             models_dir = models_dir + "/"
@@ -57,25 +69,8 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
 
     since1 = time.time()
 
-    if 'cuda' in device:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        if gpus:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-    elif "cpu" in device:
-        tf.config.set_visible_devices([], 'GPU')
-
-    # 5: LCA, 9: RCA
-    object_model = tf.compat.v1.keras.models.load_model(models_dir + 'algorithm1.h5', compile=False)
-    out = []
-    for i in tqdm(range(dicom.shape[0])):
-        out1 = object_model(np.stack((dicom[i:i+1],) * 3, -1).astype(np.float32)/255)
-        out.append(out1[0])
-    object_pred = np.argmax(np.bincount(np.array(out).argmax(1)))
-
-    assert(object_pred in [5,9]), "DICOM does not display RCA or LCA."
-
-    del object_model
+    object_pred = artery_view
+    assert(object_pred in ["RCA","LCA"]), "DICOM does not display RCA or LCA."
 
     print("Algorithm 1 / 6 finished in", round(time.time() - since1, 2), 's')
     
@@ -86,21 +81,37 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
     print("\nAlgorithm 2 / 6 starts")
 
     since2 = time.time()
+    
+    if 'cuda' in device:
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+    elif "cpu" in device:
+        tf.config.set_visible_devices([], 'GPU')
 
-    angle_model = tf.compat.v1.keras.models.load_model(models_dir + 'algorithm2a.h5', compile=False)
-    out = []
-    for i in tqdm(range(dicom.shape[0])):
-        out1 = angle_model(np.stack((dicom[i:i+1],) * 3, -1).astype(np.float32)/255)
-        out.append(out1[0])
-    angle_pred = np.argmax(np.bincount(np.array(out).argmax(1)))
+    primary_angle = float(dicom_info['PositionerPrimaryAngle'].value)
+    secondary_angle = float(dicom_info['PositionerSecondaryAngle'].value)
+    
+    primary_angle = (primary_angle + 180) % 360 - 180
+    secondary_angle = (secondary_angle + 180) % 360 - 180
+    if (-45 <= primary_angle <= -15) and (15 <= secondary_angle <= 45):
+        angle_pred = "RAO Cranial"
+    elif (15 <= primary_angle <= 45) and (-15 <= secondary_angle <= 15):
+        angle_pred = "LAO Straight"
+    else:
+        angle_pred = "Other"
 
-    if (object_pred == 9.0) & (angle_pred == 7.0):
+    if (object_pred == "RCA") & (angle_pred == "LAO Straight"):
         angle_model = keras_retinanet.models.load_model(models_dir + 'algorithm2b/RCA_LAO_straight.h5', backbone_name="resnet50")
-    elif (object_pred == 5.0) & (angle_pred == 0.0):
+        print("RetinaNet model of the", angle_pred, "projection angle from the", object_pred, "loaded.")
+    elif (object_pred == "LCA") & (angle_pred == "RAO Cranial"):
         angle_model = keras_retinanet.models.load_model(models_dir + 'algorithm2b/LAD_RAO_cranial.h5', backbone_name="resnet50")
+        print("RetinaNet model of the", angle_pred, "projection angle from the", object_pred, "loaded.")
     else:
         angle_model = keras_retinanet.models.load_model(models_dir + 'algorithm2b/general.h5', backbone_name="resnet50")
-
+        print("General RetinaNet model loaded.")
+    
     c = 0
     stenoses = {}
     for i in tqdm(range(dicom.shape[0])):
@@ -118,7 +129,7 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
         for j in idx:
             stenoses[c] = {'frame': i, 'box': tuple(boxes[0, j])}
             c += 1
-
+    
     del angle_model
 
     print("Algorithm 2 / 6 finished in", round(time.time() - since2, 2), 's')
@@ -181,6 +192,11 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
     print("\nAlgorithm 5 / 6 starts")
 
     since5 = time.time()
+    
+    segments_of_interest = {}
+    segments_of_interest["rca"] = ["prox_rca","mid_rca","dist_rca","pda","posterolateral"]
+    segments_of_interest["lca"] = ["leftmain","lad","mid_lad","dist_lad","lcx","dist_lcx"]
+    
     for i in tqdm(range(len(stenoses))):
         frame = stenoses[i]['frame']
         (x1, y1, x2, y2) = stenoses[i]['box_resized']
@@ -195,14 +211,15 @@ def deepcoro(dicom_path, save_dir, models_dir, device):
             x_shift = -reg_shift[1] + pad_value
             region = padded_output[int(y1 + y_shift): int(y2 + y_shift), int(x1 + x_shift): int(x2 + x_shift)].astype('uint8')
 
-            segment = utils.get_segment_center(region, int(object_pred))
+            segment = utils.get_segment_center(region, object_pred)
             preds.append(segment)
 
         cleaned_preds = [i for i in preds if not(i in ['None', 'other'])]
         if len(cleaned_preds) == 0:
             pred_segment = 'None'
         else:
-            pred_segment = max(set(cleaned_preds), key=cleaned_preds.count)
+            counts = Counter(cleaned_preds)
+            pred_segment = max(counts, key=lambda x: (counts[x], -(segments_of_interest["rca"] + segments_of_interest["lca"]).index(x)))
 
         stenoses[i]['artery_segment'] = pred_segment
 
@@ -292,16 +309,18 @@ def main(args = None):
     
     parser.add_argument('--dicom_path')
     parser.add_argument('--save_dir')
+    parser.add_argument('--artery_view')
     parser.add_argument('--models_dir', default = 'models/')
     parser.add_argument('--device', default = 'cuda')
     parser = parser.parse_args(args)
     
     dicom_path = parser.dicom_path
+    artery_view = parser.artery_view.upper()
     save_dir = parser.save_dir
     models_dir = parser.models_dir
     device = parser.device
  
-    deepcoro(dicom_path, save_dir, models_dir, device)
+    deepcoro(dicom_path, artery_view, save_dir, models_dir, device)
 
 
 if __name__ == '__main__':
