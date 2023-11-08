@@ -66,4 +66,13 @@ where the inputs are
 
 ## Build
 docker build -t deepcoro_inference .
-docker run -v /path/to/xml:/xml_input -v /path/to/processed_data:/processed_data -v /path/to/results:/results echonext_val
+To run on cpu:
+```
+  docker run -v /path/to/dcm:/dcm_input -v /path/to/results:/results deepcoro_inference
+```
+To run on cpu:
+```
+  docker run --gpus all -v /path/to/dcm:/dcm_input -v /path/to/results:/results deepcoro_inference
+```
+
+docker run --gpus all -v /home/denis/Documents/GitHub/DeepCoro/dcm_input:/dcm_input -v /home/denis/Documents/GitHub/DeepCoro/results:/results deepcoro_inference

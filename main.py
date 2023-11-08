@@ -11,8 +11,10 @@ import scipy.ndimage
 import time
 from collections import Counter
 
-def deepcoro(input_file_path, save_dir, models_dir, device):
+def deepcoro(input_file_path, save_dir, models_dir):
     df = pd.read_csv(input_file_path)
+    prefix = input_file_path[:input_file_path.find('input_file.csv')]
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     df['artery_view'] = df['artery_view'].str.upper()
     df['frame'] = df['frame'].astype('int64')
     df['x1'] = df['x1'].astype('int64')
@@ -31,7 +33,7 @@ def deepcoro(input_file_path, save_dir, models_dir, device):
         assert(len(sub_df['artery_view'].unique().tolist()) == 1), "More than one artery view " + str(sub_df['artery_view'].unique().tolist()) + " is associated to the same dicom " + dicom_path
         artery_view = sub_df['artery_view'].iloc[0]
     
-        dicom_info = pydicom.dcmread(dicom_path)
+        dicom_info = pydicom.dcmread(prefix + dicom_path)
         dicom = dicom_info.pixel_array
         since = time.time()
         
@@ -276,18 +278,16 @@ def deepcoro(input_file_path, save_dir, models_dir, device):
 def main(args = None):
     parser = argparse.ArgumentParser(description = 'DeepCoro')
     
-    parser.add_argument('--input_file_path', default='/opt/deepcoro/dcm_input/input_file.csv')
+    parser.add_argument('--input_file_path', default='/dcm_input/input_file.csv')
     parser.add_argument('--save_dir', default='/results/')
     parser.add_argument('--models_dir', default = '/opt/deepcoro/models/')
-    parser.add_argument('--device', default = 'cuda')
     parser = parser.parse_args(args)
     
     input_file_path = parser.input_file_path
     save_dir = parser.save_dir
     models_dir = parser.models_dir
-    device = parser.device
  
-    deepcoro(input_file_path, save_dir, models_dir, device)
+    deepcoro(input_file_path, save_dir, models_dir)
 
 
 if __name__ == '__main__':
