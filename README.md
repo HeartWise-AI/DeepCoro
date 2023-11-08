@@ -50,10 +50,10 @@ Example of the input csv file:
 | dicom2.dcm | LCA | 60 | 203 | 217 | 248 | 276 |
 
 ### Run inference
-To run inference on a DICOM, you must run the following command in a terminal:
+To run inference on DICOMs identified in your input csv file, you must run the following command in a terminal:
 
 ```
-python main.py --dicom_path YOUR_DICOM_PATH --save_dir YOUR_SAVE_DIR --artery_view DICOM_ARTERY_VIEW --models_dir YOUR_MODELS_DIR --device YOUR_DEVICE
+python main.py --input_file_path YOUR_INPUT_FILE_PATH --save_dir YOUR_SAVE_DIR --models_dir YOUR_MODELS_DIR --device YOUR_DEVICE
 ```
 
 where the inputs are
