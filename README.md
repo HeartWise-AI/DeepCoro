@@ -66,3 +66,4 @@ where the inputs are
 
 ## Build
 docker build -t deepcoro_inference .
+docker run -v /path/to/xml:/xml_input -v /path/to/processed_data:/processed_data -v /path/to/results:/results echonext_val
