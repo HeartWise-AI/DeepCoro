@@ -66,13 +66,11 @@ where the inputs are
 
 ## Build
 docker build -t deepcoro_inference .
-To run on cpu:
+To run on CPU:
 ```
   docker run -v /path/to/dcm:/dcm_input -v /path/to/results:/results deepcoro_inference
 ```
-To run on cpu:
+To run on GPU:
 ```
   docker run --gpus all -v /path/to/dcm:/dcm_input -v /path/to/results:/results deepcoro_inference
 ```
-
-docker run --gpus all -v /home/denis/Documents/GitHub/DeepCoro/dcm_input:/dcm_input -v /home/denis/Documents/GitHub/DeepCoro/results:/results deepcoro_inference
