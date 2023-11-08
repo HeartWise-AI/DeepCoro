@@ -62,3 +62,7 @@ where the inputs are
 - models_dir: The directory where the models (the content of the 'models' file available on HuggingFace) are located (optional, default = models/).
 - device: The device on which you want to run inference (cuda or cpu) (optional, default = cuda).
 
+
+
+## Build
+docker build -t deepcoro_inference .
