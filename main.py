@@ -276,9 +276,9 @@ def deepcoro(input_file_path, save_dir, models_dir, device):
 def main(args = None):
     parser = argparse.ArgumentParser(description = 'DeepCoro')
     
-    parser.add_argument('--input_file_path')
-    parser.add_argument('--save_dir')
-    parser.add_argument('--models_dir', default = 'models/')
+    parser.add_argument('--input_file_path', default='/opt/deepcoro/dcm_input/input_file.csv')
+    parser.add_argument('--save_dir', default='/results/')
+    parser.add_argument('--models_dir', default = '/opt/deepcoro/models/')
     parser.add_argument('--device', default = 'cuda')
     parser = parser.parse_args(args)
     

@@ -2,7 +2,6 @@ FROM python:3.8
 WORKDIR /opt/deepcoro/
 
 COPY . .
-
 RUN pip install --upgrade pip
 RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
 RUN apt install git-lfs -y
