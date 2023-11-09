@@ -27,6 +27,7 @@ def deepcoro(input_file_path, save_dir, models_dir):
     
     dicom_id = 1
     for dicom_path in dicom_paths:
+        print("DICOM", dicom_id, "\n")
         idx = np.where(dicom_path == df['dicom_path'].values)[0]
         sub_df = df.iloc[idx].copy().reset_index(drop=True)
         
@@ -75,35 +76,35 @@ def deepcoro(input_file_path, save_dir, models_dir):
         ### Algorithm 1 ###
         ###################
 
-        print("\nAlgorithm 1 / 6 starts")
+        #print("\nAlgorithm 1 / 6 starts")
 
         since1 = time.time()
 
         object_pred = artery_view
         assert(object_pred in ["RCA","LCA"]), "DICOM does not display RCA or LCA."
 
-        print("Algorithm 1 / 6 finished in", round(time.time() - since1, 2), 's')
+        #print("Algorithm 1 / 6 finished in", round(time.time() - since1, 2), 's')
 
         ###################
         ### Algorithm 2 ###
         ###################
 
-        print("\nAlgorithm 2 / 6 starts")
+        #print("\nAlgorithm 2 / 6 starts")
 
         since2 = time.time()
 
         stenoses = {}
         for i in tqdm(range(len(sub_df))):
-            (x1, y1, x2, y2) = (df['x1'].iloc[i], df['y1'].iloc[i], df['x2'].iloc[i], df['y2'].iloc[i])
+            (x1, y1, x2, y2) = (sub_df['x1'].iloc[i], sub_df['y1'].iloc[i], sub_df['x2'].iloc[i], sub_df['y2'].iloc[i])
             stenoses[i] = {'frame': df['frame'].iloc[i], 'box': (x1, y1, x2, y2)}
 
-        print("Algorithm 2 / 6 finished in", round(time.time() - since2, 2), 's')
+        #print("Algorithm 2 / 6 finished in", round(time.time() - since2, 2), 's')
 
         ###################
         ### Algorithm 3 ###
         ###################
 
-        print("\nAlgorithm 3 / 6 starts")
+        #print("\nAlgorithm 3 / 6 starts")
 
         since3 = time.time()
         imager_spacing = float(dicom_info['ImagerPixelSpacing'][0])
@@ -120,7 +121,7 @@ def deepcoro(input_file_path, save_dir, models_dir):
             stenoses[i]['box_resized'] = (x1n, y1n, x2n, y2n) 
             stenoses[i]['reg_shift'] = utils.register(dicom, frame, x1n, y1n, x2n, y2n)
 
-        print("Algorithm 3 / 6 finished in", round(time.time() - since3, 2), 's')
+        #print("Algorithm 3 / 6 finished in", round(time.time() - since3, 2), 's')
 
         ###################
         ### Algorithm 4 ###
@@ -269,10 +270,10 @@ def deepcoro(input_file_path, save_dir, models_dir):
         
         df_stenoses_cat = pd.concat([df_stenoses_cat, df_stenoses])
         df_stenoses_cat.to_csv(save_dir + "df_stenosis.csv")
-        dicom_id += 1
 
         total_time = int(time.time() - since)
-        print("Total running time:", int(total_time // 60), 'min', int(total_time % 60), "s")
+        print("Total running timefor DICOM", dicom_id, ":", int(total_time // 60), 'min', int(total_time % 60), "s\n")
+        dicom_id += 1
 
 
 def main(args = None):
