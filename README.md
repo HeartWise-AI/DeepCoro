@@ -48,7 +48,7 @@ The outputs are generated from inference in a folder ```results/``` which contai
 To run inference on DICOMs identified in your input csv file, you must run the following command in a terminal:
 1. Clone the DeepCoro repository:
  ```
- https://github.com/HeartWise-AI/DeepCoro.git
+ git clone https://github.com/HeartWise-AI/DeepCoro.git
  ```
 2. Place your input files in the ```dcm_input/``` input folder created (see ```Input folder``` section above).
 3. Build the docker that contains the environment on which inference will be run, and all the weights and files necessary for the task. In the repository, run:
