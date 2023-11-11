@@ -50,11 +50,11 @@ To run inference on DICOMs identified in your input csv file, you must run the f
  ```
  https://github.com/HeartWise-AI/DeepCoro.git
  ```
-2. Build the docker that contains the environment on which inference will be run, and all the weights and files necessary for the task. In the repository, run:
+2. Place your input files in the ```dcm_input/``` input folder created (see ```Input folder``` section above).
+3. Build the docker that contains the environment on which inference will be run, and all the weights and files necessary for the task. In the repository, run:
  ```
  docker build -t deepcoro_inference .
  ```
-3. Place your input files in the ```dcm_input/``` input folder created (see ```Input folder``` section above).
 4. Run inference:
  * To run on CPU:
  ```
@@ -65,8 +65,8 @@ To run inference on DICOMs identified in your input csv file, you must run the f
    docker run --gpus all -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results deepcoro_inference
  ```
  where 
- - /path/to/dcm_input: The path to the input folder ```dcm_input/```.
- - /path/to/results: The path to the output folder ```results/```.
+ - /path/to/dcm_input: The path to the input folder ```dcm_input/``` (see ```Input folder``` section above).
+ - /path/to/results: The path to the output folder ```results/``` (see ```Output folder``` section above).
 
 ### Models
 Trained models are available on HuggingFace to perform inference: [DeepCoro models](https://huggingface.co/heartwise/DeepCoro/tree/main)
