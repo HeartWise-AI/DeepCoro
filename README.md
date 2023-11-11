@@ -3,7 +3,16 @@ This repository contains the material necessary to run inference on a DICOM coro
 
 ### Input folder
 The input folder ```dcm_input/``` contains the following inputs:
-1. Your DICOMs to run inference on.
+1. Your DICOMs to run inference on. The DICOM on which inference is ran must:
+ * Contain information about:
+   - Imager Pixel Spacing
+   - Distance Source To Detector
+   - Distance Source To Patient
+   - Recommended Display Frame Rate
+   - Study Date
+   - Patient's Birth Date
+ * Display the right coronary arteries (RCA) or the left coronary arteries (LCA).
+ * Be aquired at 15 frames per seconds.
 2. An input csv file named ```input_file.csv``` that contains 7 columns:
  * dicom_path: The path to the DICOM on which you want to run inference.
  * artery_view: The manual identification of the coronary arteries viewed in the coronary angiography (RCA or LCA).
@@ -35,18 +44,6 @@ The outputs are generated from inference in a folder ```results/``` which contai
   * percent_stenosis: Percentage of obstruction predicted. 
   * severe_stenosis: Mention of if the stenosis is severe or not according to our predetermined threshold. 
 
-### DICOM requirements 
-The DICOM on which inference is ran must:
-- Contain information about:
-  * Imager Pixel Spacing
-  * Distance Source To Detector
-  * Distance Source To Patient
-  * Recommended Display Frame Rate
-  * Study Date
-  * Patient's Birth Date
-- Display the right coronary arteries (RCA) or the left coronary arteries (LCA).
-- Be aquired at 15 frames per seconds.
-
 ### Run inference
 To run inference on DICOMs identified in your input csv file, you must run the following command in a terminal:
 1. Clone the DeepCoro repository:
@@ -57,7 +54,7 @@ To run inference on DICOMs identified in your input csv file, you must run the f
  ```
  docker build -t deepcoro_inference .
  ```
-3. Place your files in the dcm_input folder created.
+3. Place your input files in the ```dcm_input/``` input folder created (see ```Input folder``` section above).
 4. Run inference:
  * To run on CPU:
  ```
@@ -68,8 +65,8 @@ To run inference on DICOMs identified in your input csv file, you must run the f
    docker run --gpus all -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results deepcoro_inference
  ```
  where 
- - /path/to/dcm_input: The path to the input folder ```dcm_input/```.
- - /path/to/results: The path to the output folder ```results/```.
+ - /path/to/dcm_input: The path to the input folder ```dcm_input/``` (optinal, if you changed the ```dcm_input/``` folder directory).
+ - /path/to/results: The path to the output folder ```results/``` (optinal, if you changed the ```results/``` folder directory).
 
 ### Models
 Trained models are available on HuggingFace to perform inference: [DeepCoro models](https://huggingface.co/heartwise/DeepCoro/tree/main)
