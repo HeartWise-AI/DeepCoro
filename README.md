@@ -74,3 +74,15 @@ To run inference on DICOMs identified in your input csv file, you must run the f
 ### Models
 ----------
 Trained models are available on HuggingFace to perform inference: [DeepCoro models](https://huggingface.co/heartwise/DeepCoro/tree/main)
+
+### Reference
+-------------
+Labrecque Langlais, E., Corbin, D., Tastet, O., Hayek, A., Doolub, G., Mrad, S., Tardif, J.-C., Tanguay, J.-F., Marquis-Gravel, G., Tison, G., Kadoury, S., Le, W., Gallo, R., Lesage, F, & Avram, R. Evaluation of Stenoses Using AI Video Models Applied to Coronary Angiographies, 23 November 2023, PREPRINT (Version 1) available at Research Square [https://doi.org/10.21203/rs.3.rs-3610879/v1]
+
+```
+@article{avram2023evaluation,
+  title={Evaluation of Stenoses Using AI Video Models Applied to Coronary Angiographies},
+  author={Labrecque Langlais, E. and Corbin, D. and Tastet, O. and Hayek, A. and Doolub, G. and Mrad, S. and Tardif, J.-C. and Tanguay, J.-F. and Marquis-Gravel, G. and Tison, G. and Kadoury, S. and Le, W. and Gallo, R. and Lesage, F. and Avram, R.},
+  year={2023}
+}
+```
