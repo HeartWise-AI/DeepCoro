@@ -1,7 +1,9 @@
 # DeepCoro
-This repository contains the material necessary to run inference on a DICOM coronary angiography video. Models for the primary anatomic struction classification (Algorithm 1) and stenosis detection (Algorithm 2) could not be made public. Therefore, coronary arteries viewed and stenoses need to be manually identified in an input csv file.
+----------
+This repository provides the material necessary to run inference on a DICOM coronary angiography video of the algorithms constituting DeepCoro, described in the paper titled "[Evaluation of Stenoses Using AI Video Models Applied to Coronary Angiographies](https://www.researchsquare.com/article/rs-3610879/v1)". Models for the primary anatomic struction classification (Algorithm 1) and stenosis detection (Algorithm 2) could not be made public. Therefore, coronary arteries viewed and stenoses need to be manually identified in an input csv file. 
 
 ### Input folder
+----------------
 The input folder ```dcm_input/``` contains the following inputs:
 1. Your DICOMs to run inference on. The DICOM on which inference is ran must:
     * Contain information about:
@@ -32,6 +34,7 @@ Example of ```input_file.csv```:
 | dicom2.dcm | LCA | 60 | 203 | 217 | 248 | 276 |
 
 ### Output folder
+-----------------
 The outputs are generated from inference in a folder ```results/``` which contains the following outputs:
 1. Registered videos of detected stenoses with the identification of the stenosis location, its associated coronary artery segment and its percentage of obstruction.
 2. A ```df_stenosis.csv``` file where, for each output registered video, there is information about:
@@ -45,6 +48,7 @@ The outputs are generated from inference in a folder ```results/``` which contai
      * severe_stenosis: Mention of if the stenosis is severe or not according to our predetermined threshold. 
 
 ### Run inference
+-----------------
 To run inference on DICOMs identified in your input csv file, you must run the following command in a terminal:
 1. Clone the DeepCoro repository:
  ```
@@ -69,4 +73,5 @@ To run inference on DICOMs identified in your input csv file, you must run the f
  - /path/to/results: The path to the output folder ```results/``` (see ```Output folder``` section above).
 
 ### Models
+----------
 Trained models are available on HuggingFace to perform inference: [DeepCoro models](https://huggingface.co/heartwise/DeepCoro/tree/main)
