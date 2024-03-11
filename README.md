@@ -1,5 +1,4 @@
 # DeepCoro
-----------
 This repository provides the material necessary to run inference on a DICOM coronary angiography video of the algorithms constituting DeepCoro, described in the paper titled "[Evaluation of Stenoses Using AI Video Models Applied to Coronary Angiographies](https://www.researchsquare.com/article/rs-3610879/v1)". Models for the primary anatomic struction classification (Algorithm 1) and stenosis detection (Algorithm 2) could not be made public. Therefore, coronary arteries viewed and stenoses need to be manually identified in an input csv file. 
 
 ### Input folder
