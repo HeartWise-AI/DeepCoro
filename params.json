@@ -1,0 +1,37 @@
+{
+    "artery_labels": {
+        "leftmain": 0,
+        "lad": 1,
+        "lcx": 2,
+        "mid_lad": 3,
+        "dist_lcx": 4,
+        "dist_lad": 5,
+        "prox_rca": 6,
+        "mid_rca": 7,
+        "dist_rca": 8,
+        "pda": 9,
+        "posterolateral": 10
+    },
+    "percentage_threshold": 0.23,
+    "segmentation_models_weights": [
+        "/opt/deepcoro/models/algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth"
+    ],
+    "swin3d_model_weights": "/opt/deepcoro/models/algorithm6.pt",
+    "segments_of_interest": {
+        "rca": [
+            "prox_rca",
+            "mid_rca",
+            "dist_rca",
+            "pda",
+            "posterolateral"
+        ],
+        "lca": [
+            "leftmain",
+            "lad",
+            "mid_lad",
+            "dist_lad",
+            "lcx",
+            "dist_lcx"
+        ]
+    }
+}

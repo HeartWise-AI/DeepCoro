@@ -1,0 +1,9 @@
+result/batch_inference/*
+result/frame_inference/*
+dcm_input/*
+
+obj_recon/
+20_random_stenosis.csv
+df_stenosis_2021.csv
+__pycache__/
+logs.txt

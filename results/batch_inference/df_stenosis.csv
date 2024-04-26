@@ -1,0 +1,13 @@
+,dicom_path,video_path,frame,box_resized,artery_segment,percent_stenosis,severe_stenosis
+0,1.3.12.2.1107.5.4.5.105103.30000021083111431868800000682.dcm,/results/batch_inference/DICOM0_posterolateral_22_nonsevere_stenosis.mp4,72.0,"(98, 207, 165, 274)",posterolateral,22.250786417452844,False
+0,1.3.46.670589.29.1877192777354251328328154169550772.dcm,/results/batch_inference/DICOM1_dist_lad_12_nonsevere_stenosis.mp4,54.0,"(127, 270, 220, 363)",dist_lad,12.51997392088731,False
+0,1.3.46.670589.29.1877192777354251328172947537941882.dcm,/results/batch_inference/DICOM2_lcx_15_nonsevere_stenosis.mp4,47.0,"(84, 100, 167, 183)",lcx,15.638769313597587,False
+0,1.3.46.670589.29.1877192777354251327188497198775352.dcm,/results/batch_inference/DICOM3_leftmain_10_nonsevere_stenosis.mp4,60.0,"(90, 50, 183, 143)",leftmain,10.20377157348027,False
+0,1.3.46.670589.29.1877192777354251327981047677216502.dcm,/results/batch_inference/DICOM4_prox_rca_18_nonsevere_stenosis.mp4,41.0,"(125, 170, 206, 251)",prox_rca,18.684599092990137,False
+0,1.3.46.670589.29.1877192777354251328182232825034482.dcm,/results/batch_inference/DICOM5_lcx_14_nonsevere_stenosis.mp4,38.0,"(231, 150, 308, 227)",lcx,14.176353548192546,False
+0,1.3.46.670589.29.1877192777354251327800267835192882.dcm,/results/batch_inference/DICOM6_mid_rca_28_severe_stenosis.mp4,43.0,"(90, 258, 173, 341)",mid_rca,28.639049391120608,True
+0,1.3.12.2.1107.5.4.5.105103.30000021112512441177600000541.dcm,/results/batch_inference/DICOM7_lad_25_severe_stenosis.mp4,45.0,"(198, 126, 299, 227)",lad,25.269779390505022,True
+0,1.3.46.670589.29.1877192777354251327629325603519662.dcm,/results/batch_inference/DICOM8_prox_rca_85_severe_stenosis.mp4,28.0,"(115, 111, 200, 196)",prox_rca,85.62759394413835,True
+0,1.3.46.670589.29.1877192777354251327206329347608562.dcm,/results/batch_inference/DICOM9_mid_rca_25_severe_stenosis.mp4,24.0,"(43, 108, 124, 189)",mid_rca,25.8632442810898,True
+0,1.3.46.670589.29.1877192777354251327420981401534042.dcm,/results/batch_inference/DICOM10_prox_rca_15_nonsevere_stenosis.mp4,31.0,"(229, 108, 298, 177)",prox_rca,15.171726339761605,False
+0,1.3.46.670589.29.447743945511661326763189129708712.dcm,/results/batch_inference/DICOM11_pda_11_nonsevere_stenosis.mp4,32.0,"(294, 262, 379, 347)",pda,11.01245994464119,False

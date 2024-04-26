@@ -12,6 +12,7 @@ import time
 from collections import Counter
 
 def deepcoro(input_file_path, save_dir, models_dir):
+    
     df = pd.read_csv(input_file_path)
     prefix = input_file_path[:input_file_path.find('input_file.csv')]
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -94,9 +95,11 @@ def deepcoro(input_file_path, save_dir, models_dir):
         since2 = time.time()
 
         stenoses = {}
+        print(sub_df)
+        print(df)
         for i in tqdm(range(len(sub_df))):
             (x1, y1, x2, y2) = (sub_df['x1'].iloc[i], sub_df['y1'].iloc[i], sub_df['x2'].iloc[i], sub_df['y2'].iloc[i])
-            stenoses[i] = {'frame': df['frame'].iloc[i], 'box': (x1, y1, x2, y2)}
+            stenoses[i] = {'frame': sub_df['frame'].iloc[i], 'box': (x1, y1, x2, y2)}
 
         #print("Algorithm 2 / 6 finished in", round(time.time() - since2, 2), 's')
 
@@ -142,10 +145,14 @@ def deepcoro(input_file_path, save_dir, models_dir):
 
         models = [utils.load_model(path, device) for path in model_paths]
 
-        output = np.zeros(dicom.shape)
+        output = np.zeros(dicom.shape)        
+        
+        start_time = time.time()
         for i in tqdm(range(dicom.shape[0])):
             output[i] = utils.perform_segmentation_inference(models, dicom[i], device)
-
+        end_time = time.time()
+        
+        
         del models
         if 'cuda' in device:
             torch.cuda.empty_cache()
@@ -223,6 +230,7 @@ def deepcoro(input_file_path, save_dir, models_dir):
 
         df_stenoses['percent_stenosis'] = None
         df_stenoses['severe_stenosis'] = None
+        
         for i in tqdm(range(len(df_stenoses))):
             (x1, y1, x2, y2) = df_stenoses['box_resized'].iloc[i]
             reg_shifts = df_stenoses['reg_shift'].iloc[i]
@@ -280,15 +288,17 @@ def main(args = None):
     parser = argparse.ArgumentParser(description = 'DeepCoro')
     
     parser.add_argument('--input_file_path', default='/dcm_input/input_file.csv')
-    parser.add_argument('--save_dir', default='/results/')
+    parser.add_argument('--save_dir', default='/results/frame_inference/')
     parser.add_argument('--models_dir', default = '/opt/deepcoro/models/')
     parser = parser.parse_args(args)
     
     input_file_path = parser.input_file_path
     save_dir = parser.save_dir
     models_dir = parser.models_dir
- 
+    start_time = time.time()
     deepcoro(input_file_path, save_dir, models_dir)
+    end_time = time.time()
+    print(f"Elapsed time: {end_time-start_time}")
 
 
 if __name__ == '__main__':

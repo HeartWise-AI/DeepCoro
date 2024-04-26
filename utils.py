@@ -15,6 +15,8 @@ from dateutil.relativedelta import relativedelta
 ### Algorithm 3 ###
 ###################
 
+
+
 def resize_coordinates(x1, y1, x2, y2, pixel_spacing, img_shape, target_size):
     xc = np.floor((x2 + x1) / 2)
     yc = np.floor((y2 + y1) / 2)
@@ -138,7 +140,8 @@ def histogram_equalization(image):
     image_pil = torchvision.transforms.ToPILImage()(image)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     cl1 = clahe.apply(np.asarray(image_pil))
-    return torch.from_numpy(cl1).unsqueeze(0)
+    cl1_copy = cl1.copy()
+    return torch.from_numpy(cl1_copy).unsqueeze(0)
 
 def process_image(img):
     assert(len(img.shape) == 2)
@@ -148,7 +151,21 @@ def process_image(img):
     image = (image - image.min()) / (image.max() - image.min())
     return image
 
+def perform_segmentation_inference_batch(models, batch, device):
+    processed_batch = []
+    for img in batch:
+        processed_img = process_image(img).repeat(1, 3, 1, 1)
+        processed_batch.append(processed_img)
+    
+    processed_batch = torch.cat(processed_batch, dim=0).to(device)    
+    with torch.no_grad():
+        outputs = [model(processed_batch).cpu() for model in models]
+    
+    combined_outputs = torch.stack(outputs).mean(dim=0).argmax(1).numpy()
+    return combined_outputs
+
 def perform_segmentation_inference(models, img, device):
+    
     image = process_image(img).repeat(1, 3, 1, 1).to(device)
     with torch.no_grad():
         outputs = [model(image) for model in models]
@@ -239,7 +256,7 @@ def create_cropped_registered_video(dicom, frame, reg_shifts, x1, y1, x2, y2):
         
     cropped_img_reg = np.stack((cropped_img_reg,) * 3, 1)
     cropped_img_reg = torch.from_numpy(cropped_img_reg)
-    cropped_img_reg = torchvision.transforms.Resize((RESIZE, RESIZE))(cropped_img_reg)
+    cropped_img_reg = torchvision.transforms.Resize((RESIZE, RESIZE),antialias=None)(cropped_img_reg)
     cropped_img_reg = torchvision.transforms.Normalize(mean, std)(cropped_img_reg).numpy()
     
     pad_value = int(FRAMES / 2)
@@ -262,13 +279,10 @@ class Regressor(nn.Module):
     def __init__(self, num_class = 1, num_features = 12):
         super(Regressor, self).__init__()
         
-        
-        model = torchvision.models.video.swin3d_b(weights='KINETICS400_IMAGENET22K_V1')
+        model = torchvision.models.video.swin3d_b(weights='KINETICS400_IMAGENET22K_V1', progress=False)
         n_inputs = model.head.in_features
         model.head = nn.Linear(n_inputs, num_class)
-        #model = nn.Sequential(model, nn.Sigmoid())
 
-        #model = model[0]
         n_inputs = model.head.in_features
         model.head = Identity()
         

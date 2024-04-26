@@ -1,0 +1,3 @@
+,dicom_path,video_path,frame,box,box_resized,artery_segment,percent_stenosis,severe_stenosis
+0,input1.dcm,/results/frame_inference/DICOM1_mid_rca_69_severe_stenosis.mp4,50.0,"(122, 214, 211, 303)","(121, 213, 210, 302)",mid_rca,69.88078571544139,True
+0,input2.dcm,/results/frame_inference/DICOM2_prox_rca_21_nonsevere_stenosis.mp4,51.0,"(195, 84, 284, 173)","(194, 83, 283, 172)",prox_rca,21.039419870958834,False
