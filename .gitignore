@@ -1,5 +1,5 @@
-result/batch_inference/*
-result/frame_inference/*
+results/batch_inference/*
+results/frame_inference/*
 dcm_input/*
 
 obj_recon/
@@ -7,3 +7,4 @@ obj_recon/
 df_stenosis_2021.csv
 __pycache__/
 logs.txt
+random_dicom/
