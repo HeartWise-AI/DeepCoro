@@ -100,7 +100,9 @@ def read_videos(input_file_path):
         ## Extract stenosis boxes 
         stenoses = sub_df[['frame', 'x1', 'y1', 'x2', 'y2']].to_dict('records')
         
-        for stenosis in stenoses:
+        
+        for idx, stenosis in enumerate(stenoses):
+            old_frame = df['frame'].iloc[idx] ## To reproduce old behavior use old_frame: 
             frame = stenosis['frame']
             x1, y1, x2, y2 = stenosis['x1'], stenosis['y1'], stenosis['x2'], stenosis['y2']
             x1n, y1n, x2n, y2n = utils.resize_coordinates(x1, y1, x2, y2, pixel_spacing, dicom.shape, 17.5)
@@ -127,9 +129,13 @@ def segment_artery_subclass(dicom_data, models_dir, device):
     
     ### Each dicom in dicom_data is a video 
     for value in tqdm(dicom_data.values()):
-        output = np.zeros(value['dicom'].shape)
-        output = utils.perform_segmentation_inference_batch(models,value['dicom'],device)
-        all_outputs.append(output)
+        dicom_array = value['dicom']
+        for stenosis in value['stenoses']:
+            frame = int(stenosis['frame'])
+            clipped_dicom_array = dicom_array[frame-5:frame+5]
+            output = np.zeros(clipped_dicom_array.shape)
+            output = utils.perform_segmentation_inference_batch(models,clipped_dicom_array,device)
+            all_outputs.append(output)
     
     ### Delete models from gpu to optimize memory usage 
     del models
@@ -147,6 +153,7 @@ def assign_stenosis_to_segment(data_dict, output, segments_of_interest):
         df_stenoses = df_stenoses.loc[df_stenoses['artery_segment'] != 'None'].reset_index(drop=True)
         df_stenoses = df_stenoses.groupby(['artery_segment']).apply(lambda group: group.iloc[len(group) // 2]).reset_index(drop=True)
         df_dict[key] = df_stenoses[['frame', 'box_resized', 'reg_shift', 'artery_segment']]
+    
     return df_dict
 
 def get_preds(row, output, object_pred, segments_of_interest):
@@ -162,6 +169,7 @@ def get_preds(row, output, object_pred, segments_of_interest):
         region = padded_output[int(y1 + y_shift): int(y2 + y_shift), int(x1 + x_shift): int(x2 + x_shift)].astype('uint8')
         segment = utils.get_segment_center(region, object_pred)
         preds.append(segment)
+        
     return preds
 
 def get_pred_segment(preds, segments_of_interest):
@@ -173,7 +181,7 @@ def get_pred_segment(preds, segments_of_interest):
         return max(counts, key=lambda x: (counts[x], -(segments_of_interest["rca"] + segments_of_interest["lca"]).index(x)))
 
 ## This function uses a swin3d model to predict the % of stenosis (indicating the severtiy of the stenosis)
-def predict_percentage_stenosis(data_dict, device, df_dict,models_dir):
+def predict_percentage_stenosis(data_dict, device, df_dict, models_dir):
     
     model = utils.get_model()
     model = model.to(device).double()
