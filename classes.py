@@ -104,7 +104,7 @@ class StenosisDataset:
             batches['batch_segments'].clear()
             batches['batch_keys'].clear()
 
-        for dicom_idx, dicom_exam in tqdm(enumerate(self.dicoms),desc="(Algo6) Swin3D severity prediction: ",total=len(self.dicoms)):
+        for dicom_idx, dicom_exam in tqdm(enumerate(self.dicoms),desc="(Algo 6) Swin3D severity prediction: ",total=len(self.dicoms)):
             for stenosis_idx, stenosis in enumerate(self.dicoms[dicom_idx].stenoses):
                 batches['batch_videos'].append(self.dicoms[dicom_idx].stenoses[stenosis_idx].video)
                 batches['batch_ages'].append(utils_refac.get_age(dicom_exam.dicom_info))
