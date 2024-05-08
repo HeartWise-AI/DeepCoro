@@ -1,4 +1,6 @@
 {
+    "target_size": 17.5,
+    "batch_size": 16,
     "artery_labels": {
         "leftmain": 0,
         "lad": 1,
@@ -14,9 +16,12 @@
     },
     "percentage_threshold": 0.23,
     "segmentation_models_weights": [
-        "/opt/deepcoro/models/algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth"
+        "/volume/deepcoro/repotest/DeepCoro/models/algorithm4/bs_16_lr_0.00232125_model_DeepLabV3_loss_LovaszLoss.pth",
+        "/volume/deepcoro/repotest/DeepCoro/models/algorithm4/bs_64_lr_0.00107809_model_FPN_loss_LovaszLoss.pth",
+        "/volume/deepcoro/repotest/DeepCoro/models/algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth",
+        "/volume/deepcoro/repotest/DeepCoro/models/algorithm4/bs_64_lr_0.00129894_model_PAN_loss_TverskyLoss.pth"
     ],
-    "swin3d_model_weights": "/opt/deepcoro/models/algorithm6.pt",
+    "swin3d_model_weights": "/volume/deepcoro/repotest/DeepCoro/models/algorithm6.pt",
     "segments_of_interest": {
         "rca": [
             "prox_rca",

@@ -10,6 +10,7 @@ import imageio
 import scipy.ndimage
 import time
 from collections import Counter
+import os 
 
 def deepcoro(input_file_path, save_dir, models_dir):
     
@@ -18,10 +19,10 @@ def deepcoro(input_file_path, save_dir, models_dir):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     df['artery_view'] = df['artery_view'].str.upper()
     df['frame'] = df['frame'].astype('int64')
-    df['x1'] = df['x1'].astype('int64')
-    df['y1'] = df['y1'].astype('int64')
-    df['x2'] = df['x2'].astype('int64')
-    df['y2'] = df['y2'].astype('int64')
+    df['x1'] = df['x1_stenosis'].astype('int64')
+    df['y1'] = df['y1_stenosis'].astype('int64')
+    df['x2'] = df['x2_stenosis'].astype('int64')
+    df['y2'] = df['y2_stenosis'].astype('int64')
     
     dicom_paths = df['dicom_path'].unique().tolist()
     df_stenoses_cat = pd.DataFrame({'dicom_path':[],'video_path':[], 'frame':[], 'box':[], 'box_resized':[], 'artery_segment':[], 'percent_stenosis':[], 'severe_stenosis':[]})
@@ -95,8 +96,6 @@ def deepcoro(input_file_path, save_dir, models_dir):
         since2 = time.time()
 
         stenoses = {}
-        print(sub_df)
-        print(df)
         for i in tqdm(range(len(sub_df))):
             (x1, y1, x2, y2) = (sub_df['x1'].iloc[i], sub_df['y1'].iloc[i], sub_df['x2'].iloc[i], sub_df['y2'].iloc[i])
             stenoses[i] = {'frame': sub_df['frame'].iloc[i], 'box': (x1, y1, x2, y2)}
@@ -250,6 +249,8 @@ def deepcoro(input_file_path, save_dir, models_dir):
         ####################
 
         print("\nSaving output...")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
         if len(save_dir) > 0:
             if save_dir[-1] != "/":
                 save_dir = save_dir + "/"
@@ -287,9 +288,10 @@ def deepcoro(input_file_path, save_dir, models_dir):
 def main(args = None):
     parser = argparse.ArgumentParser(description = 'DeepCoro')
     
-    parser.add_argument('--input_file_path', default='/dcm_input/input_file.csv')
-    parser.add_argument('--save_dir', default='/results/frame_inference/')
-    parser.add_argument('--models_dir', default = '/opt/deepcoro/models/')
+    parser.add_argument('--input_file_path', default='/volume/deepcoro/repotest/DeepCoro/random_dicoms/input_file.csv')
+    parser.add_argument('--models_dir', default = '/volume/deepcoro/repotest/DeepCoro/models/')
+    parser.add_argument('--save_dir', default='/volume/deepcoro/repotest/DeepCoro/results/4_stenosis/frame_inference/')
+    
     parser = parser.parse_args(args)
     
     input_file_path = parser.input_file_path
