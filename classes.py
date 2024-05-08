@@ -10,7 +10,7 @@ import scipy
 import imageio
 import json
 from typing import List
-
+import pydicom
 
 class StenosisDataset:
     """
@@ -67,9 +67,11 @@ class StenosisDataset:
         Args:
             device (str): The device to use for computations.
         """
-        print("\n\n(Algo 4) Inferring Artery Segmentation from DICOM ...")
-        for idx, dicom_exam in enumerate(self.dicoms):
+        for idx, dicom_exam in tqdm(enumerate(self.dicoms),desc="(Algo 4) Inferring Artery Segmentation from DICOM: ",total=len(self.dicoms)):
             dicom_exam.batch_segmentation(self.segmentation_model, device)
+        
+        if 'cuda' in device:
+            torch.cuda.empty_cache()
 
     def predict_stenosis_severity(self, device: str) -> None:
         """
@@ -97,9 +99,12 @@ class StenosisDataset:
                 self.dicoms[int(key.split('-')[0])].stenoses[int(key.split('-')[1])].set_percent_stenosis(output.cpu().detach().numpy()[i][0])
 
             # Clear lists
-            batches.clear()
+            batches['batch_videos'].clear()
+            batches['batch_ages'].clear()
+            batches['batch_segments'].clear()
+            batches['batch_keys'].clear()
 
-        for dicom_idx, dicom_exam in tqdm(enumerate(self.dicoms), desc="Batching Stenosis", total=len(self.dicoms)):
+        for dicom_idx, dicom_exam in tqdm(enumerate(self.dicoms),desc="(Algo6) Swin3D severity prediction: ",total=len(self.dicoms)):
             for stenosis_idx, stenosis in enumerate(self.dicoms[dicom_idx].stenoses):
                 batches['batch_videos'].append(self.dicoms[dicom_idx].stenoses[stenosis_idx].video)
                 batches['batch_ages'].append(utils_refac.get_age(dicom_exam.dicom_info))
@@ -140,12 +145,11 @@ class StenosisDataset:
         for dicom_idx, dicom in tqdm(enumerate(self.dicoms), desc="Saving Results", total=len(self.dicoms)):
             for stenosis_idx, stenosis in enumerate(dicom.stenoses):
                 video_save_path = f"{save_dir}dicom{dicom_idx}_stenosis{stenosis_idx}AtFrame{stenosis.frame}_{int(stenosis.percent_stenosis)}pct_{utils_refac.to_camel_case(stenosis.artery_segment)}.mp4"
+                img_reg = np.zeros(dicom.dicom_info.pixel_array.shape)
 
-                img_reg = np.zeros(dicom.dicom_data.shape)
-
-                for frame_id in range(dicom.dicom_data.shape[0]):
+                for frame_id in range(dicom.dicom_info.pixel_array.shape[0]):
                     reg_shift = stenosis.reg_shift[frame_id]
-                    img_reg[frame_id] = scipy.ndimage.shift(dicom.dicom_data[frame_id], shift=(reg_shift[0], reg_shift[1]), order=5)
+                    img_reg[frame_id] = scipy.ndimage.shift(dicom.dicom_info.pixel_array[frame_id], shift=(reg_shift[0], reg_shift[1]), order=5)
                     cv2.rectangle(img_reg[frame_id], (stenosis.resized_box_coordinates['x1'], stenosis.resized_box_coordinates['y1']), (stenosis.resized_box_coordinates['x2'], stenosis.resized_box_coordinates['y2']), (255, 255, 255), 1)
                     cv2.putText(img_reg[frame_id], stenosis.artery_segment + " - " + str(int(stenosis.percent_stenosis)) + '%', org=(stenosis.resized_box_coordinates['x1'], stenosis.resized_box_coordinates['y1']), fontFace=font, fontScale=1, color=(255, 255, 255))
 
@@ -174,26 +178,115 @@ class DicomExam:
     Args:
         dicom_path (str): The path to the DICOM file.
         dicom_info (pydicom.dataset.FileDataset): The DICOM dataset information.
-        dicom_data (np.ndarray): The DICOM pixel data.
-        object_value (str): The object value associated with the DICOM exam.
+        anatomical_structure (str): The object value associated with the DICOM exam.
         pixel_spacing (float): The pixel spacing of the DICOM exam.
         params (dict): Additional parameters for the DICOM exam.
     """
 
-    def __init__(self, dicom_path: str, dicom_info: 'pydicom.dataset.FileDataset', dicom_data: np.ndarray,
-                 object_value: str, pixel_spacing: float, params: dict):
+    def __init__(self, dicom_path: str, anatomical_structure: str, params: dict):
         self.params = params
         self.dicom_path = dicom_path
-        self.dicom_info = dicom_info
-        self.dicom_data = dicom_data
-        self.processed_dicom = utils_refac.process_batch(self.dicom_data)
-
-        self.pixel_spacing = float(self.dicom_info['ImagerPixelSpacing'][0] / (self.dicom_info['DistanceSourceToDetector'].value / self.dicom_info['DistanceSourceToPatient'].value))
-        self.object_value = object_value
-
-        self.segmentation_output = None
+        self.dicom_info = self.get_dicom_info()
+        self.processed_dicom = utils_refac.process_batch(self.dicom_info.pixel_array)
+        self.pixel_spacing = self.get_pixel_spacing()
+        self.fps = self.get_fps()
+        self.anatomical_structure = anatomical_structure
+        self.segmentation_map = None
         self.stenoses = []
+    
+    def qc_skip(self, dicom_stenoses: 'pd.DataFrame') -> bool:
+        """
+        Perform various checks on the DICOM file and associated data.
 
+        Args:
+            sub_df (pd.DataFrame): The DataFrame containing stenosis information.
+            dicom_path (str): The path to the DICOM file.
+            dicom_info (pydicom.dataset.FileDataset): The DICOM dataset information.
+
+        Returns:
+            bool: True if all checks pass, False otherwise.
+        """
+
+        skip = False
+        if len(dicom_stenoses['artery_view'].unique()) != 1:
+            print(f"More than one artery view {dicom_stenoses['artery_view'].unique()} is associated with the same DICOM {dicom.dicom_path}")
+            skip = True
+            
+        if dicom_stenoses['frame'].max() >= self.dicom_info.pixel_array.shape[0]:
+            print(f"Maximum frame number ({dicom_stenoses['frame'].max()}) for dicom {self.dicom_path} is higher than or equal to the number of frames in the video ({self.dicom_info.pixel_array.shape[0]}).")
+            skip = True
+        
+        anatomical_structure = dicom_stenoses['artery_view'].iloc[0]
+        if anatomical_structure not in ["RCA", "LCA"]:
+            print("DICOM does not display RCA or LCA.")
+            skip = True
+        
+        if len(dicom_stenoses['artery_view'].unique()) != 1:
+            print(f"More than one artery view {dicom_stenoses['artery_view'].unique()} is associated with the same DICOM {self.dicom_path}")
+            skip = True
+
+        if dicom_stenoses['frame'].max() >= self.dicom_info.pixel_array.shape[0]:
+            print(f"Maximum frame number ({dicom_stenoses['frame'].max()}) for dicom {self.dicom_path} is higher than or equal to the number of frames in the video ({self.dicom_info.pixel_array.shape[0]}).")
+            skip = True
+
+        return skip
+    
+    def get_dicom_info(self):
+        """
+        
+        Sets dicom_infos
+        
+        """
+        
+        try:
+            dicom_info = pydicom.dcmread(self.dicom_path)
+            required_tags = ['ImagerPixelSpacing', 'DistanceSourceToDetector', 'DistanceSourceToPatient']
+            if not all(tag in dicom_info for tag in required_tags):
+                missing_tags = [tag for tag in required_tags if tag not in dicom_info]
+                logging.warning(f"Missing required DICOM tags in file: {dicom_path}. Missing tags: {', '.join(missing_tags)}.")
+                return None
+            return dicom_info 
+        
+        except pydicom.errors.InvalidDicomError as e:
+            logging.error(f"Error reading DICOM file: {dicom_path}. Skipping.")
+            logging.error(f"Error message: {str(e)}")
+            return None
+    
+    def get_fps(self):
+        """
+        
+        Finds the fps of the dicom video and prints a warning if fps != 15 
+        
+        """
+        try:
+            return int(self.dicom_info["RecommendedDisplayFrameRate"].value)
+            if fps != 15:
+                print(f"Frame rate not equal to 15 FPS ({fps} FPS) for dicom {self.dicom_path}.")
+                
+        except KeyError:    
+            print(f'Frame rate information missing {self.dicom_path}.')
+            return None
+            
+    def get_pixel_spacing(self):
+        """
+        
+        Calculates the pixal spacing value if possible. Sets to None if absent from dicom infos.
+        Needs to have access to dicom_info. 
+        
+        """
+        try:
+            imager_spacing = float(self.dicom_info['ImagerPixelSpacing'][0])
+            factor = float(self.dicom_info['DistanceSourceToDetector'].value) / float(self.dicom_info['DistanceSourceToPatient'].value)
+            pixel_spacing = float( imager_spacing / factor)
+            if imager_spacing <= 0 or factor <= 0:
+                raise ValueError(f'Pixel spacing information invalid for dicom {self.dicom_path}.')
+            
+            return pixel_spacing
+        except (KeyError, ValueError):
+            print(f'Pixel spacing information missing or invalid for dicom {self.dicom_path}. Setting to None') 
+            return None
+    
+    
     def add_stenosis(self, stenosis: 'Stenosis') -> None:
         """
         Adds a stenosis to the DICOM exam.
@@ -202,15 +295,7 @@ class DicomExam:
             stenosis (Stenosis): The stenosis to add.
         """
         self.stenoses.append(stenosis)
-
-    def set_segmentation_output(self, segmentation_output: np.ndarray) -> None:
-        """
-        Sets the segmentation output for the DICOM exam.
-
-        Args:
-            segmentation_output (np.ndarray): The segmentation output array.
-        """
-        self.segmentation_output = segmentation_output
+        
 
     def batch_segmentation(self, models: List['torch.nn.Module'], device: str) -> None:
         """
@@ -220,6 +305,7 @@ class DicomExam:
             models (List[torch.nn.Module]): The segmentation models.
             device (str): The device to use for computations.
         """
+        
         batch = self.processed_dicom.to(device)
         outputs = []
         with torch.no_grad():
@@ -229,7 +315,9 @@ class DicomExam:
         self.segmentation_output = torch.stack(outputs).mean(dim=0).argmax(1).to('cpu').numpy()
 
         for idx, stenosis in enumerate(self.stenoses):
-            self.stenoses[idx].assign_artery_segment(self.segmentation_output, self.object_value)
+            self.stenoses[idx].assign_artery_segment(self.segmentation_output, self.anatomical_structure)
+            
+        
 
 
 class Stenosis(DicomExam):
@@ -243,16 +331,15 @@ class Stenosis(DicomExam):
     """
 
     def __init__(self, dicom_exam: DicomExam, frame: int, stenosis_box: dict):
-        super().__init__(dicom_exam.dicom_path, dicom_exam.dicom_info, dicom_exam.dicom_data,
-                         dicom_exam.object_value, dicom_exam.pixel_spacing, dicom_exam.params)
+        super().__init__(dicom_exam.dicom_path, dicom_exam.anatomical_structure, dicom_exam.params)
         self.frame = frame
         self.initial_box_coordinates = stenosis_box
         self.resized_box_coordinates = utils_refac.resize_coordinates(
-            self.initial_box_coordinates, self.pixel_spacing, self.dicom_data.shape, self.params['target_size']
+            self.initial_box_coordinates, self.pixel_spacing, self.dicom_info.pixel_array.shape, self.params['target_size']
         )
-        self.reg_shift = utils_refac.register(self.dicom_data, self.frame, self.resized_box_coordinates)
+        self.reg_shift = utils_refac.register(self.dicom_info.pixel_array, self.frame, self.resized_box_coordinates)
         self.video = utils_refac.create_cropped_registered_video(
-            self.dicom_data, self.frame, self.reg_shift, self.resized_box_coordinates
+            self.dicom_info.pixel_array, self.frame, self.reg_shift, self.resized_box_coordinates
         )
 
         self.artery_segment = None
@@ -302,10 +389,9 @@ class Stenosis(DicomExam):
             self.artery_segment = 'None'
         else:
             counts = Counter(cleaned_preds)
-            final_pred_segment = max(counts, key=lambda x: (
+            self.artery_segment = max(counts, key=lambda x: (
                 counts[x],
                 -(self.params["segments_of_interest"]["rca"] + self.params["segments_of_interest"]["lca"]).index(x)
                 if x in (self.params["segments_of_interest"]["rca"] + self.params["segments_of_interest"]["lca"])
                 else float('inf')
             ))
-            self.artery_segment = final_pred_segment

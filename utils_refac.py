@@ -13,6 +13,7 @@ import yaml
 from typing import Dict, List, Tuple, Union
 
 
+
 def to_camel_case(string: str) -> str:
     """
     Convert a string from snake_case to camelCase.
@@ -28,66 +29,6 @@ def to_camel_case(string: str) -> str:
 
     parts = string.split('_')
     return parts[0] + ''.join(part.capitalize() for part in parts[1:])
-
-
-def perform_checks(sub_df: 'pd.DataFrame', dicom_path: str, dicom_info: 'pydicom.dataset.FileDataset') -> bool:
-    """
-    Perform various checks on the DICOM file and associated data.
-
-    Args:
-        sub_df (pd.DataFrame): The DataFrame containing stenosis information.
-        dicom_path (str): The path to the DICOM file.
-        dicom_info (pydicom.dataset.FileDataset): The DICOM dataset information.
-
-    Returns:
-        bool: True if all checks pass, False otherwise.
-    """
-    dicom = dicom_info.pixel_array
-
-    if len(sub_df['artery_view'].unique()) != 1:
-        print(f"More than one artery view {sub_df['artery_view'].unique()} is associated with the same DICOM {dicom_path}")
-        return False
-
-    if sub_df['frame'].max() >= dicom.shape[0]:
-        print(f"Maximum frame number ({sub_df['frame'].max()}) for dicom {dicom_path} is higher than or equal to the number of frames in the video ({dicom.shape[0]}).")
-        return False
-
-    try:
-        imager_spacing = float(dicom_info['ImagerPixelSpacing'][0])
-        factor = float(dicom_info['DistanceSourceToDetector'].value) / float(dicom_info['DistanceSourceToPatient'].value)
-        pixel_spacing = float(imager_spacing / factor)
-        if imager_spacing <= 0 or factor <= 0:
-            raise ValueError(f'Pixel spacing information invalid for dicom {dicom_path}.')
-    except (KeyError, ValueError):
-        print(f'Pixel spacing information missing or invalid for dicom {dicom_path}.')
-        return False
-
-    try:
-        fps = int(dicom_info["RecommendedDisplayFrameRate"].value)
-        if fps != 15:
-            print(f"Frame rate not equal to 15 FPS ({fps} FPS) for dicom {dicom_path}.")
-            return False
-    except KeyError:
-        print(f'Frame rate information missing {dicom_path}.')
-        return False
-
-    try:
-        StudyDate = str(dicom_info["StudyDate"].value)
-    except KeyError as e:
-        print(f"Study date information missing. :: Error {str(e)}")
-
-    try:
-        DOB = str(dicom_info[(0x0010, 0x0030)].value)
-    except KeyError:
-        print("Patient age information missing.")
-        return False
-
-    object_pred = sub_df['artery_view'].iloc[0]
-    if object_pred not in ["RCA", "LCA"]:
-        print("DICOM does not display RCA or LCA.")
-        return False
-
-    return True
 
 
 ###################
@@ -158,8 +99,7 @@ def register(img: np.ndarray, index: int, box_coordinates: Dict[str, int]) -> Di
     """
     img_after = img[index:]
     img_before = np.flip(img[: index + 1], 0)
-    plx = []
-    ply = []
+    plx, ply = [], []
     tracker = cv2.TrackerCSRT.create()
 
     tracker.init(
@@ -375,27 +315,30 @@ which_artery = {
 }
 
 
-def get_segment_region(region: np.ndarray, object_value: str) -> str:
+def get_segment_region(region: np.ndarray, anatomical_structure: str) -> str:
     """
     Get the segment region based on the object value.
 
     Args:
         region (np.ndarray): The region of interest.
-        object_value (str): The object value (e.g., 'RCA' or 'LCA').
+        anatomical_structure (str): The object value (e.g., 'RCA' or 'LCA').
 
     Returns:
         str: The segment region.
     """
+    
     unique, counts = np.unique(region, return_counts=True)
     region_counts = dict(zip(unique, counts))
     sorted_counts = dict(sorted(region_counts.items(), key=lambda item: item[1], reverse=True))
     if 0 in sorted_counts:
         del sorted_counts[0]
+        
     segment = 'None'
     for value in sorted_counts:
-        if value in which_artery[object_value]:
+        if value in which_artery[anatomical_structure]:
             segment = retinanet_artery_labels[value]
             break
+        
     return segment
 
 

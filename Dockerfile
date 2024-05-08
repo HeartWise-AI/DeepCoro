@@ -15,6 +15,7 @@ RUN mv /opt/deepcoro/models_tmp/models /opt/deepcoro/models
 RUN rm -R /opt/deepcoro/models_tmp
 
 RUN pip install -r requirements.txt
+COPY params.json /
 
 VOLUME ["/dcm_input", "/results"]
 
