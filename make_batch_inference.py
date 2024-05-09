@@ -102,26 +102,26 @@ def main(args: None) -> None:
     start_time = time.time()
     stenosis_dataset = process_dicoms(input_path, params_file)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (read_video): {end_time - start_time}s ** ')
+    logging.info(f'\t ** Elapsed Time (read_video): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.segment_artery_subclass(stenosis_dataset.device)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (segment_artery_subclass): {end_time - start_time}s ** ')
+    logging.info(f'\t ** Elapsed Time (segment_artery_subclass): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.predict_stenosis_severity(stenosis_dataset.device)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (predict_stenosis_severity): {end_time - start_time}s ** ')
+    logging.info(f'\t ** Elapsed Time (predict_stenosis_severity): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.save_run(save_dir)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (save_run): {end_time - start_time}s ** ')
+    logging.info(f'\t ** Elapsed Time (save_run): {end_time - start_time}s ** \n\n')
 
     total_end_time = time.time()
 
-    logging.info(f'\t ** Total Elapsed Time: {total_end_time - total_start_time}s ** ')
+    logging.info(f'\t ** Total Elapsed Time: {total_end_time - total_start_time}s ** \n\n')
 
 
 if __name__ == '__main__':
