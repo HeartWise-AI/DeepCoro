@@ -1,16 +1,15 @@
 import argparse
 import torch
 import pandas as pd
-import utils_refac
 from tqdm import tqdm
 import time
-import logging
 import sys 
+import os
 
 from classes import Stenosis, StenosisDataset, DicomExam
 
 
-def process_dicoms(input_path: str, params_file: str) -> StenosisDataset:
+def process_dicoms(input_path: str, params_file: str, models_dir: str) -> StenosisDataset:
     """
     Read DICOM files and perform video registration.
 
@@ -34,13 +33,15 @@ def process_dicoms(input_path: str, params_file: str) -> StenosisDataset:
     input_folder = input_path[:input_path.find('input_file.csv')]
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    stenosis_dataset = StenosisDataset(input_path, params_file, device)
+    stenosis_dataset = StenosisDataset(input_path, params_file, models_dir, device)
 
-    logging.info("\t\tReading DICOM files (resizing box coordinates + video registration) ...")
+    print("\t\tReading DICOM files (resizing box coordinates + video registration) ...")
     for dicom_path, stenosis_df in tqdm(df.groupby('dicom_path'), desc="Processing DICOM files"):
         
         predicted_anatomical_structure = stenosis_df['artery_view'].iloc[0]
-        dicom_exam = DicomExam(input_folder + dicom_path, predicted_anatomical_structure, stenosis_dataset.params)
+        dicom_exam = DicomExam(os.path.join(input_folder, dicom_path), predicted_anatomical_structure, stenosis_dataset.params)
+        
+        dicom_exam.object_recon(stenosis_dataset.device, stenosis_dataset.object_recon_model)
         
         if dicom_exam.qc_skip(stenosis_df):
             continue
@@ -70,11 +71,16 @@ def parse_args(args):
         argparse.Namespace: Parsed arguments.
     """
     
+    
     parser = argparse.ArgumentParser(description='DeepCoro')
 
-    parser.add_argument('--input_path', help='Path to the input CSV file')
-    parser.add_argument('--save_dir', help='Directory to save the results')
-    parser.add_argument('--params_file', help='Path to the parameters file')
+
+    parser.add_argument('--workdir', help='Path to the input CSV file',default="/volume/deepcoro/repotest/DeepCoro/")
+
+    parser.add_argument('--input_path', help='Path to the input CSV file',default="random_dicoms/input_file.csv")
+    parser.add_argument('--save_dir', help='Directory to save the results',default="results/inference")
+    parser.add_argument('--models_dir', help='Directory to save the results',default="models/")
+    parser.add_argument('--params_file', help='Path to the parameters file',default="params.json")
 
     return parser.parse_args(args)
 
@@ -87,43 +93,52 @@ def main(args: None) -> None:
         args (Union[argparse.Namespace, None]): Command-line arguments. Defaults to None.
     """
     
+        
     parsed_args = parse_args(args)
     
-    input_path = parsed_args.input_path    
-    save_dir = parsed_args.save_dir
-    params_file = parsed_args.params_file
-
+    workspace_dir = parsed_args.workdir
+    input_path = os.path.join(workspace_dir, parsed_args.input_path)    
+    save_dir = os.path.join(workspace_dir, parsed_args.save_dir)
+    params_file = os.path.join(workspace_dir, parsed_args.params_file)
+    
+    print(workspace_dir)
+    if workspace_dir == '/':
+        model_root_dir = '/opt/deepcoro/'
+    else:
+        model_root_dir = parsed_args.workdir
+    models_dir = os.path.join(model_root_dir, parsed_args.models_dir)
+    
+    
     total_start_time = time.time()
 
-    logging.info("\t\tStarting DeepCORO algorithm suite with the following parameters:")
-    logging.info(f"\t\t\t* input_path: {input_path}")
-    logging.info(f"\t\t\t* save_dir: {save_dir}")
+    print("\tStarting DeepCORO algorithm suite with the following parameters:")
+    print(f"\t\t* input_path: {input_path}")
+    print(f"\t\t* save_dir: {save_dir}")
 
     start_time = time.time()
-    stenosis_dataset = process_dicoms(input_path, params_file)
+    stenosis_dataset = process_dicoms(input_path, params_file, models_dir)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (read_video): {end_time - start_time}s ** \n\n')
+    print(f'\t ** Elapsed Time (read_video): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.segment_artery_subclass(stenosis_dataset.device)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (segment_artery_subclass): {end_time - start_time}s ** \n\n')
+    print(f'\t ** Elapsed Time (segment_artery_subclass): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.predict_stenosis_severity(stenosis_dataset.device)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (predict_stenosis_severity): {end_time - start_time}s ** \n\n')
+    print(f'\t ** Elapsed Time (predict_stenosis_severity): {end_time - start_time}s ** \n\n')
 
     start_time = time.time()
     stenosis_dataset.save_run(save_dir)
     end_time = time.time()
-    logging.info(f'\t ** Elapsed Time (save_run): {end_time - start_time}s ** \n\n')
+    print(f'\t ** Elapsed Time (save_run): {end_time - start_time}s ** \n\n')
 
     total_end_time = time.time()
 
-    logging.info(f'\t ** Total Elapsed Time: {total_end_time - total_start_time}s ** \n\n')
+    print(f'\t ** Total Elapsed Time: {total_end_time - total_start_time}s ** \n\n')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     main(sys.argv[1:])

@@ -9,8 +9,8 @@ import torch.nn as nn
 import torchvision.models.video
 from datetime import date
 from dateutil.relativedelta import relativedelta
-import yaml
 from typing import Dict, List, Tuple, Union
+import os 
 
 
 
@@ -507,10 +507,67 @@ def object_recon(dicom: np.ndarray, config: dict, device: str, model: 'torch.nn.
     Returns:
         torch.Tensor: The output of the object reconstruction model.
     """
+        
     checkpoint = torch.load(config["model_path"])
+    
+    model = torchvision.models.video.swin3d_s(weights="KINETICS400_V1")
+    n_inputs = model.head.in_features
+    model.head = nn.Linear(n_inputs, 11)
+    
     model_state_dict = checkpoint.get("model_state_dict", checkpoint.get("state_dict"))
     model.load_state_dict(model_state_dict)
     model.to(device)
 
     output = model(dicom)
     return output
+
+
+
+### Model loading 
+
+def load_segmentation_UNet_models(models_dir, model_weights, device):
+    return [load_model(os.path.join(models_dir, path), device) for path in model_weights]
+    
+def load_structure_recognition_Swin3D_model(models_dir, model_weights, device):
+        
+    model = torchvision.models.video.swin3d_s(weights="KINETICS400_V1")
+    n_inputs = model.head.in_features
+            
+    model.head = nn.Linear(n_inputs, 11)
+    
+    checkpoint = torch.load(os.path.join(models_dir,model_weights))
+    checkpoint = {key.replace('module.model.', ''): value for key, value in checkpoint.items()}
+    
+    model_state_dict = checkpoint.get("model_state_dict", checkpoint.get("state_dict"))
+
+    # Check and consume "_orig_mod.module." prefix if present
+    if any(k.startswith("_orig_mod.module.") for k in model_state_dict.keys()):
+        torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
+            model_state_dict, "_orig_mod.module."
+        )
+        print("Removed prefix '_orig_mod.module.' from state dict")
+
+    # Check and consume "module." prefix if present
+    elif any(k.startswith("module.") for k in model_state_dict.keys()):
+        torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
+            model_state_dict, "module."
+        )
+        print("Removed prefix 'module.' from state dict")
+
+    model.load_state_dict(model_state_dict)
+    model.eval()
+    model.to(device)
+    return model
+    
+def load_stenosis_severity_Swin3D_model(models_dir, model_weights, device):
+    severity_prediction_model = get_model().to(device).double()
+    checkpoint = torch.load(os.path.join(models_dir, model_weights), map_location=device)["state_dict"]
+    
+    if device == 'cpu':
+        checkpoint = {key.replace('module.', ''): value for key, value in checkpoint.items()}
+    else:
+        severity_prediction_model = torch.nn.DataParallel(severity_prediction_model)
+    severity_prediction_model.eval()
+    severity_prediction_model.load_state_dict(checkpoint)
+    return severity_prediction_model
+        

@@ -1,27 +1,15 @@
 {
     "target_size": 17.5,
     "batch_size": 4,
-    "artery_labels": {
-        "leftmain": 0,
-        "lad": 1,
-        "lcx": 2,
-        "mid_lad": 3,
-        "dist_lcx": 4,
-        "dist_lad": 5,
-        "prox_rca": 6,
-        "mid_rca": 7,
-        "dist_rca": 8,
-        "pda": 9,
-        "posterolateral": 10
-    },
     "percentage_threshold": 0.23,
     "segmentation_models_weights": [
-        "/opt/deepcoro/models/algorithm4/bs_16_lr_0.00232125_model_DeepLabV3_loss_LovaszLoss.pth",
-        "/opt/deepcoro/models/algorithm4/bs_64_lr_0.00107809_model_FPN_loss_LovaszLoss.pth",
-        "/opt/deepcoro/models/algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth",
-        "/opt/deepcoro/models/algorithm4/bs_64_lr_0.00129894_model_PAN_loss_TverskyLoss.pth"
+        "algorithm4/bs_16_lr_0.00232125_model_DeepLabV3_loss_LovaszLoss.pth",
+        "algorithm4/bs_64_lr_0.00107809_model_FPN_loss_LovaszLoss.pth",
+        "algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth",
+        "algorithm4/bs_64_lr_0.00129894_model_PAN_loss_TverskyLoss.pth"
     ],
-    "swin3d_model_weights": "/opt/deepcoro/models/algorithm6.pt",
+    "swin3d_model_weights": "algorithm6.pt",
+    "object_recon_model_path": "structure_recon/weights.pt",
     "segments_of_interest": {
         "rca": [
             "prox_rca",
@@ -38,5 +26,94 @@
             "lcx",
             "dist_lcx"
         ]
+    },
+    "object_dict": {
+        "0": "Aorta",
+        "1": "Catheter",
+        "2": "Femoral",
+        "3": "Graft",
+        "4": "LV",
+        "5": "Left Coronary",
+        "6": "Other",
+        "7": "Pigtail",
+        "8": "Radial",
+        "9": "Right Coronary",
+        "10": "Stenting"
+    },
+    "swin3d_object_recon_params": {
+        "weights": "structure_recon/weights.pt",
+        "mean": [
+            104.86392211914062,
+            104.86392211914062,
+            104.86392211914062
+        ],
+        "std": [
+            53.32306671142578,
+            53.32306671142578,
+            53.32306671142578
+        ],
+        "video_length": 32,
+        "period": 2,
+        "object_dict": {
+            "0": "Aorta",
+            "1": "Catheter",
+            "2": "Femoral",
+            "3": "Graft",
+            "4": "LV",
+            "5": "Left Coronary",
+            "6": "Other",
+            "7": "Pigtail",
+            "8": "Radial",
+            "9": "Right Coronary",
+            "10": "Stenting"
+        },
+        "percentage_threshold": 0.23
+    },
+    "unet_artery_segmentation_params": {
+        "weights": [
+            "algorithm4/bs_16_lr_0.00232125_model_DeepLabV3_loss_LovaszLoss.pth",
+            "algorithm4/bs_64_lr_0.00107809_model_FPN_loss_LovaszLoss.pth",
+            "algorithm4/bs_64_lr_0.00242160_model_DeepLabV3Plus_loss_LovaszLoss.pth",
+            "algorithm4/bs_64_lr_0.00129894_model_PAN_loss_TverskyLoss.pth"
+        ]
+    },
+    "swin3d_severity_prediction_params": {
+        "weights": "algorithm6.pt",
+        "batch_size": 4,
+        "artery_labels": {
+            "leftmain": 0,
+            "lad": 1,
+            "lcx": 2,
+            "mid_lad": 3,
+            "dist_lcx": 4,
+            "dist_lad": 5,
+            "prox_rca": 6,
+            "mid_rca": 7,
+            "dist_rca": 8,
+            "pda": 9,
+            "posterolateral": 10
+        }
+    },
+    "assign_artery_segment_params": {
+        "segments_of_interest": {
+            "rca": [
+                "prox_rca",
+                "mid_rca",
+                "dist_rca",
+                "pda",
+                "posterolateral"
+            ],
+            "lca": [
+                "leftmain",
+                "lad",
+                "mid_lad",
+                "dist_lad",
+                "lcx",
+                "dist_lcx"
+            ]
+        }
+    },
+    "stenosis_params": {
+        "target_size": 17.5
     }
 }

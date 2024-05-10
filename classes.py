@@ -11,6 +11,11 @@ import imageio
 import json
 from typing import List
 import pydicom
+import torchvision
+import torch.nn as nn
+from PIL import Image, ImageDraw, ImageFont, ImageColor
+from torchvision.transforms import v2
+
 
 class StenosisDataset:
     """
@@ -22,7 +27,7 @@ class StenosisDataset:
         device (str): The device to use for computations (e.g., 'cpu' or 'cuda').
     """
 
-    def __init__(self, dicom_input_files: str, params_file: str, device: str):
+    def __init__(self, dicom_input_files: str, params_file: str, models_dir: str, device: str):
         self.dicom_input_files = dicom_input_files
         self.dicoms = []
         self.device = device
@@ -30,8 +35,12 @@ class StenosisDataset:
         with open(params_file, 'r') as file:
             self.params = json.load(file)
 
+        self.models_dir = models_dir
+        
         self.segmentation_model = None
         self.severity_prediction_model = None
+        self.object_recon_model = None
+        
 
         self.load_models()
 
@@ -48,17 +57,26 @@ class StenosisDataset:
         """
         Loads the segmentation and severity prediction models.
         """
-        self.segmentation_model = [utils_refac.load_model(path, self.device) for path in self.params["segmentation_models_weights"]]
-
-        severity_prediction_model = utils_refac.get_model().to(self.device).double()
-        checkpoint = torch.load(self.params["swin3d_model_weights"], map_location=self.device)["state_dict"]
-        if self.device == 'cpu':
-            checkpoint = {key.replace('module.', ''): value for key, value in checkpoint.items()}
-        else:
-            severity_prediction_model = torch.nn.DataParallel(severity_prediction_model)
-        severity_prediction_model.eval()
-        severity_prediction_model.load_state_dict(checkpoint)
-        self.severity_prediction_model = severity_prediction_model
+        ### Load segmentation models
+        self.segmentation_model = utils_refac.load_segmentation_UNet_models(
+            self.models_dir, 
+            self.params['unet_artery_segmentation_params']['weights'], 
+            self.device
+        )
+        
+        ### Load swin3d regression stenosis severity model
+        self.severity_prediction_model = utils_refac.load_stenosis_severity_Swin3D_model(
+            self.models_dir, 
+            self.params['swin3d_severity_prediction_params']['weights'],
+            self.device
+        )
+        
+        ### Load swin3d object classification model
+        self.object_recon_model = utils_refac.load_structure_recognition_Swin3D_model(
+            self.models_dir, 
+            self.params['swin3d_object_recon_params']['weights'],
+            self.device
+        )
 
     def segment_artery_subclass(self, device: str) -> None:
         """
@@ -88,6 +106,7 @@ class StenosisDataset:
             'batch_stenosis_index': []
         }
 
+        ### Small local function to make batch inference on stenosis videos
         def process_batch() -> None:
             video_batch = torch.cat(batches['batch_videos'], dim=0).to(device)
             age_batch = torch.tensor(batches['batch_ages']).to(device)
@@ -104,18 +123,24 @@ class StenosisDataset:
             batches['batch_segments'].clear()
             batches['batch_keys'].clear()
 
+        ## Iterate over all dicom > stenoses and create batches of videos, ages and segments for the swin3d model
         for dicom_idx, dicom_exam in tqdm(enumerate(self.dicoms),desc="(Algo 6) Swin3D severity prediction: ",total=len(self.dicoms)):
             for stenosis_idx, stenosis in enumerate(self.dicoms[dicom_idx].stenoses):
                 batches['batch_videos'].append(self.dicoms[dicom_idx].stenoses[stenosis_idx].video)
                 batches['batch_ages'].append(utils_refac.get_age(dicom_exam.dicom_info))
-                batches['batch_segments'].append(self.params['artery_labels'][stenosis.artery_segment])
+                batches['batch_segments'].append(self.params['swin3d_severity_prediction_params']['artery_labels'][stenosis.artery_segment])
                 batches['batch_keys'].append(f"{dicom_idx}-{stenosis_idx}")
 
-                if len(batches['batch_videos']) == self.params['batch_size']:
+                ## Process the batch if it reaches the target length specified in params
+                if len(batches['batch_videos']) == self.params['swin3d_severity_prediction_params']['batch_size']:
                     process_batch()
 
+        ## If there are leftovers, process what is left 
         if len(batches['batch_videos']) > 0:
             process_batch()
+            
+        if 'cuda' in device:
+            torch.cuda.empty_cache()
 
     def save_run(self, save_dir: str) -> None:
         """
@@ -135,7 +160,8 @@ class StenosisDataset:
                 'resized_box_coordinates': [],
                 'artery_segment': [],
                 'percent_stenosis': [],
-                'stenosis_severity': []
+                'stenosis_severity': [],
+                'swin3d_structure': []
             }
         )
 
@@ -164,7 +190,8 @@ class StenosisDataset:
                         'resized_box_coordinates': stenosis.resized_box_coordinates,
                         'artery_segment': stenosis.artery_segment,
                         'percent_stenosis': stenosis.percent_stenosis,
-                        'stenosis_severity': stenosis.severe_stenosis
+                        'stenosis_severity': stenosis.severe_stenosis,
+                        'swin3d_structure': dicom.swin3d_structure
                     }])], ignore_index=True)
 
         print(f"\n\nSaving summary results to: \n{save_dir}df_stenosis.csv")
@@ -191,6 +218,7 @@ class DicomExam:
         self.pixel_spacing = self.get_pixel_spacing()
         self.fps = self.get_fps()
         self.anatomical_structure = anatomical_structure
+        self.swin3d_structure = None
         self.segmentation_map = None
         self.stenoses = []
     
@@ -243,13 +271,13 @@ class DicomExam:
             required_tags = ['ImagerPixelSpacing', 'DistanceSourceToDetector', 'DistanceSourceToPatient']
             if not all(tag in dicom_info for tag in required_tags):
                 missing_tags = [tag for tag in required_tags if tag not in dicom_info]
-                logging.warning(f"Missing required DICOM tags in file: {dicom_path}. Missing tags: {', '.join(missing_tags)}.")
+                print(f"Missing required DICOM tags in file: {self.dicom_path}. Missing tags: {', '.join(missing_tags)}.")
                 return None
             return dicom_info 
         
         except pydicom.errors.InvalidDicomError as e:
-            logging.error(f"Error reading DICOM file: {dicom_path}. Skipping.")
-            logging.error(f"Error message: {str(e)}")
+            print(f"Error reading DICOM file: {self.dicom_path}. Skipping.")
+            print(f"Error message: {str(e)}")
             return None
     
     def get_fps(self):
@@ -316,6 +344,54 @@ class DicomExam:
 
         for idx, stenosis in enumerate(self.stenoses):
             self.stenoses[idx].assign_artery_segment(self.segmentation_output, self.anatomical_structure)
+    
+    def object_recon(self, device: str, model) -> torch.Tensor:
+        """
+        Perform object reconstruction on the DICOM data.
+
+        Args:
+            dicom (np.ndarray): The DICOM data.
+            config (dict): The configuration dictionary.
+            device (str): The device to use for computation.
+            model (torch.nn.Module): The model to use for object reconstruction.
+
+        Returns:
+            torch.Tensor: The output of the object reconstruction model.
+        """
+        mean = [104.86392211914062, 104.86392211914062, 104.86392211914062]
+        std = [53.32306671142578, 53.32306671142578, 53.32306671142578]
+        video_length = 32
+        period = 2 
+        
+        video = torch.from_numpy(self.dicom_info.pixel_array)
+        video = video.unsqueeze(0).repeat(3, 1, 1, 1).permute(1, 0, 2, 3)
+        
+        video = v2.Resize((224, 224), antialias=None)(video).to(torch.float32)
+        video = v2.Normalize(mean, std)(video)
+        
+        video = video.permute(1, 0, 2, 3)
+        c, f, h, w = video.shape
+        video.numpy()
+        
+        if f < video_length * period:
+            # Pad video_lenght with frames filled with zeros if too short
+            # 0 represents the mean color (dark grey), since this is after normalization
+            video = np.concatenate(
+                (video, np.zeros((c, video_length * period - f, h, w), video.dtype)), axis=1
+            )
+            c, f, h, w = video.shape 
+        
+        video = tuple(video[:, s + period * np.arange(video_length), :, :] for s in np.array([0]))
+        
+        extracted_frames = extract_frames(video)
+        extracted_frames = extracted_frames[0].unsqueeze(0).to(device)
+        
+        model.to(device)    
+        output = model(extracted_frames)
+        self.swin3d_structure = self.params["swin3d_object_recon_params"]["object_dict"][str(np.argmax(output.cpu().detach().numpy()))]
+        
+        if 'cuda' in device:
+            torch.cuda.empty_cache()
             
         
 
@@ -335,7 +411,7 @@ class Stenosis(DicomExam):
         self.frame = frame
         self.initial_box_coordinates = stenosis_box
         self.resized_box_coordinates = utils_refac.resize_coordinates(
-            self.initial_box_coordinates, self.pixel_spacing, self.dicom_info.pixel_array.shape, self.params['target_size']
+            self.initial_box_coordinates, self.pixel_spacing, self.dicom_info.pixel_array.shape, self.params['stenosis_params']['target_size']
         )
         self.reg_shift = utils_refac.register(self.dicom_info.pixel_array, self.frame, self.resized_box_coordinates)
         self.video = utils_refac.create_cropped_registered_video(
@@ -354,7 +430,7 @@ class Stenosis(DicomExam):
             percent_stenosis (float): The percent stenosis value.
         """
         self.percent_stenosis = percent_stenosis * 100
-        self.severe_stenosis = int(percent_stenosis > self.params['percentage_threshold'])
+        self.severe_stenosis = int(percent_stenosis > self.params['swin3d_object_recon_params']['percentage_threshold'])
 
     def assign_artery_segment(self, segmentation_output: np.ndarray, anatomical_structure: str) -> None:
         """
@@ -391,7 +467,16 @@ class Stenosis(DicomExam):
             counts = Counter(cleaned_preds)
             self.artery_segment = max(counts, key=lambda x: (
                 counts[x],
-                -(self.params["segments_of_interest"]["rca"] + self.params["segments_of_interest"]["lca"]).index(x)
-                if x in (self.params["segments_of_interest"]["rca"] + self.params["segments_of_interest"]["lca"])
+                -(self.params["assign_artery_segment_params"]["segments_of_interest"]["rca"] + self.params["assign_artery_segment_params"]["segments_of_interest"]["lca"]).index(x)
+                if x in (self.params["assign_artery_segment_params"]["segments_of_interest"]["rca"] + self.params["assign_artery_segment_params"]["segments_of_interest"]["lca"])
                 else float('inf')
             ))
+            
+            
+def extract_frames(video, num_frames=32):
+    total_frames = video[0].shape[0]
+    middle_frame = total_frames // 2
+    start_frame = max(0, middle_frame - num_frames // 2)
+    end_frame = min(total_frames, start_frame + num_frames)
+    extracted_frames = video[start_frame:end_frame:2]
+    return extracted_frames
