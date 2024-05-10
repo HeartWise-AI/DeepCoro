@@ -38,7 +38,7 @@
     },
     "swin3d_severity_prediction_params": {
         "weights": "algorithm6.pt",
-        "batch_size": 4,
+        "batch_size": 16,
         "artery_labels": {
             "leftmain": 0,
             "lad": 1,

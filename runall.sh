@@ -1,11 +1,8 @@
 #! /bin/sh
 
 ## Call when running from dockerfile
-# python make_batch_inference.py \
-#     --input_path /dcm_input/input_file.csv \
-#     --save_dir /results/ \
-#     --params_file /params.json
-
+python make_batch_inference.py \
+    --workdir /
 
 ## Call when working local 
 # python make_batch_inference.py \

@@ -77,7 +77,7 @@ def parse_args(args):
 
     parser.add_argument('--workdir', help='Path to the input CSV file',default="/volume/deepcoro/repotest/DeepCoro/")
 
-    parser.add_argument('--input_path', help='Path to the input CSV file',default="random_dicoms/input_file.csv")
+    parser.add_argument('--input_path', help='Path to the input CSV file',default="dcm_input/input_file.csv")
     parser.add_argument('--save_dir', help='Directory to save the results',default="results/inference")
     parser.add_argument('--models_dir', help='Directory to save the results',default="models/")
     parser.add_argument('--params_file', help='Path to the parameters file',default="params.json")
@@ -92,7 +92,7 @@ def main(args: None) -> None:
     Args:
         args (Union[argparse.Namespace, None]): Command-line arguments. Defaults to None.
     """
-    
+
         
     parsed_args = parse_args(args)
     
