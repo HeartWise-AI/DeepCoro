@@ -54,18 +54,22 @@ To run inference on DICOMs identified in your input csv file, you must run the f
  git clone https://github.com/HeartWise-AI/DeepCoro.git
  ```
 2. Place your input files in the ```dcm_input/``` input folder created (see ```Input folder``` section above).
-3. Build the docker that contains the environment on which inference will be run, and all the weights and files necessary for the task. In the repository, run:
+3. The access to the model weights on huggingface is gated. This means you need to authenticate your account on huggingface. Then, obtain an access token from your account settings. The token needs to be added as an environment variable in a .env file
+```
+HF_TOKEN=<YOUR ACCESS TOKEN>
+```
+4. Build the docker that contains the environment on which inference will be run, and all the weights and files necessary for the task. In the repository, run:
  ```
  docker build -t deepcoro_inference .
  ```
-4. Run inference:
+5. Run inference:
  * To run on CPU:
  ```
-   docker run -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results deepcoro_inference
+   docker run -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results --env-file ./.env deepcoro_inference
  ```
  * To run on GPU:
  ```
-   docker run --gpus all -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results deepcoro_inference
+   docker run --gpus all -v /path/to/dcm_input:/dcm_input -v /path/to/results:/results --env-file ./.env deepcoro_inference
  ```
  where 
  - /path/to/dcm_input: The path to the input folder ```dcm_input/``` (see ```Input folder``` section above).
