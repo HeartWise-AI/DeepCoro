@@ -1,6 +1,7 @@
 results/batch_inference/*
 results/frame_inference/*
 dcm_input/*
+.env
 
 obj_recon/
 20_random_stenosis.csv

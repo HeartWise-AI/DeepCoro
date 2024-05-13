@@ -5,6 +5,8 @@ from tqdm import tqdm
 import time
 import sys 
 import os
+from huggingface_hub import snapshot_download
+
 
 from classes import Stenosis, StenosisDataset, DicomExam
 
@@ -78,7 +80,7 @@ def parse_args(args):
     parser.add_argument('--workdir', help='Path to the input CSV file',default="/volume/deepcoro/repotest/DeepCoro/")
 
     parser.add_argument('--input_path', help='Path to the input CSV file',default="dcm_input/input_file.csv")
-    parser.add_argument('--save_dir', help='Directory to save the results',default="results/inference")
+    parser.add_argument('--save_dir', help='Directory to save the results',default="results/inference/")
     parser.add_argument('--models_dir', help='Directory to save the results',default="models/")
     parser.add_argument('--params_file', help='Path to the parameters file',default="params.json")
 
@@ -93,7 +95,6 @@ def main(args: None) -> None:
         args (Union[argparse.Namespace, None]): Command-line arguments. Defaults to None.
     """
 
-        
     parsed_args = parse_args(args)
     
     workspace_dir = parsed_args.workdir
@@ -106,7 +107,12 @@ def main(args: None) -> None:
         model_root_dir = '/opt/deepcoro/'
     else:
         model_root_dir = parsed_args.workdir
+        
+    print("\tDownloading model weights:")
+    snapshot_download(repo_id="heartwise/DeepCoro", local_dir = model_root_dir)
+    
     models_dir = os.path.join(model_root_dir, parsed_args.models_dir)
+    
     
     
     total_start_time = time.time()
