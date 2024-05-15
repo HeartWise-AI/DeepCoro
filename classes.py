@@ -12,10 +12,11 @@ import json
 from typing import List
 import pydicom
 import torchvision
+torchvision.disable_beta_transforms_warning()
+
 import torch.nn as nn
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 from torchvision.transforms import v2
-
 
 class StenosisDataset:
     """
@@ -28,7 +29,7 @@ class StenosisDataset:
     """
 
     def __init__(self, dicom_input_files: str, params_file: str, models_dir: str, device: str):
-        self.dicom_input_files = dicom_input_files
+        self.dicom_input_files = dicom_input_files # TODO: Unused variable ?
         self.dicoms = []
         self.device = device
 
@@ -213,7 +214,7 @@ class DicomExam:
     def __init__(self, dicom_path: str, anatomical_structure: str, params: dict):
         self.params = params
         self.dicom_path = dicom_path
-        self.dicom_info = self.get_dicom_info()
+        self.dicom_info = self.get_dicom_info() # TODO: Dicom VIEWER exists ? // return None but never handle
         self.processed_dicom = utils_refac.process_batch(self.dicom_info.pixel_array)
         self.pixel_spacing = self.get_pixel_spacing()
         self.fps = self.get_fps()

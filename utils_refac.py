@@ -12,6 +12,9 @@ from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Tuple, Union
 import os 
 
+from segmentation_models import SegmentationModels
+
+
 
 
 def to_camel_case(string: str) -> str:
@@ -168,23 +171,23 @@ def choose_model(model_name: str) -> 'segmentation_models_pytorch.SegmentationMo
     Raises:
         ValueError: If an invalid model name is provided.
     """
-    if model_name == 'Unet':
+    if model_name == SegmentationModels.Unet:
         return segmentation_models_pytorch.Unet(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'UnetPlusPlus':
+    elif model_name == SegmentationModels.UnetPlusPlus:
         return segmentation_models_pytorch.UnetPlusPlus(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'MAnet':
+    elif model_name == SegmentationModels.MAnet:
         return segmentation_models_pytorch.MAnet(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'Linknet':
+    elif model_name == SegmentationModels.Linknet:
         return segmentation_models_pytorch.Linknet(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'FPN':
+    elif model_name == SegmentationModels.FPN:
         return segmentation_models_pytorch.FPN(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'PSPNet':
+    elif model_name == SegmentationModels.PSPNet:
         return segmentation_models_pytorch.PSPNet(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'DeepLabV3':
+    elif model_name == SegmentationModels.DeepLabV3:
         return segmentation_models_pytorch.DeepLabV3(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'DeepLabV3Plus':
+    elif model_name == SegmentationModels.DeepLabV3Plus:
         return segmentation_models_pytorch.DeepLabV3Plus(encoder_weights="imagenet", in_channels=3, classes=26)
-    elif model_name == 'PAN':
+    elif model_name == SegmentationModels.PAN:
         return segmentation_models_pytorch.PAN(encoder_weights="imagenet", in_channels=3, classes=26)
     else:
         raise ValueError(f"Invalid model name: {model_name}. Please choose a valid model.")
