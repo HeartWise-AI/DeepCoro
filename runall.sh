@@ -1,2 +1,3 @@
-#! /bin/sh
-python main.py
+#!/bin/sh
+set -eu
+exec python -m deepcoro "$@"
