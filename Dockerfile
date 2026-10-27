@@ -1,17 +1,15 @@
-FROM python:3.8
-WORKDIR /opt/deepcoro/
+FROM python:3.11-slim
+WORKDIR /opt/deepcoro
 
-COPY . .
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
-RUN pip install --upgrade pip
-RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
-RUN apt install git-lfs -y
-RUN git lfs install
-RUN git clone https://huggingface.co/heartwise/DeepCoro /opt/deepcoro/models_tmp
-RUN mv /opt/deepcoro/models_tmp/models /opt/deepcoro/models
-RUN rm -R /opt/deepcoro/models_tmp
-RUN pip install -r requirements.txt
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
-VOLUME ["/dcm_input", "/results"]
+COPY pyproject.toml README.md LICENSE.txt main.py utils.py ./
+COPY deepcoro ./deepcoro
+RUN pip install --no-cache-dir .
 
-CMD ["/bin/sh", "runall.sh"]
+ENV HF_HOME=/cache/huggingface
+VOLUME ["/dcm_input", "/results", "/cache/huggingface"]
+ENTRYPOINT ["deepcoro"]
+CMD ["--input-file-path", "/dcm_input/input_file.csv", "--save-dir", "/results"]
